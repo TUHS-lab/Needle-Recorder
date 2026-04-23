@@ -4,7 +4,7 @@
 
 **A calm, neumorphic voice journal for Android** — record, browse, and play back moments with a UI that feels like a turntable, not a spreadsheet.
 
-<img src="preview.png" alt="Needle — home and playback" width="280" />
+<img src="https://raw.githubusercontent.com/TUHS-lab/Needle-Recorder/main/preview/needle.png.png" alt="Needle — home and playback" width="720" />
 
 <br />
 
@@ -26,10 +26,6 @@
 ## Download
 
 [Download APK](https://github.com/TUHS-lab/Needle-Recorder/releases)
-
-## Preview image
-
-Add your screenshot to the repo root as **`preview.png`** (recommended width ~1080px or device frame export). The header image above will light up on GitHub automatically.
 
 ## Requirements
 
