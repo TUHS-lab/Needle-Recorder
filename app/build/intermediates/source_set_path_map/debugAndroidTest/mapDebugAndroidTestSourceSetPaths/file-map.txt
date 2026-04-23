@@ -1,0 +1,4 @@
+com.omni.jrnl.test.app-androidTest-0 X:\Мои проекты\Needle\app\build\generated\res\resValues\androidTest\debug
+com.omni.jrnl.test.app-mergeDebugAndroidTestResources-1 X:\Мои проекты\Needle\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\merged.dir
+com.omni.jrnl.test.app-mergeDebugAndroidTestResources-2 X:\Мои проекты\Needle\app\build\intermediates\incremental\debugAndroidTest\mergeDebugAndroidTestResources\stripped.dir
+com.omni.jrnl.test.app-debugAndroidTest-3 X:\Мои проекты\Needle\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources

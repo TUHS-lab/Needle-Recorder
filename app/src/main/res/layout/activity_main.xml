@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Insets-стратегия:
+    • WindowCompat.setDecorFitsSystemWindows(window, false) → контент рисуется за барами
+    • Kotlin применяет setPadding() к ЭТОМУ FrameLayout (container)
+    • Так WebView дочерне смещается на bars.top/bars.bottom НАТИВНО, без JS/CSS трюков
+    • CSS внутри WebView использует простые фиксированные отступы (без env или custom-prop)
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ic_launcher_background">
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

@@ -1,0 +1,4 @@
+#Thu Apr 23 01:02:30 CEST 2026
+base.0=X\:\\Мои проекты\\Needle\\app\\build\\intermediates\\dex\\debugAndroidTest\\mergeProjectDexDebugAndroidTest\\0\\classes.dex
+path.0=0/classes.dex
+renamed.0=classes.dex

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher icon background: vintage cream (matches app palette) -->
+    <color name="ic_launcher_background">#EAE6DF</color>
+</resources>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Vinyl record launcher icon — foreground layer.
+
+  Canvas: 108×108dp  |  Safe zone: 72dp (center ±36dp)  |  Center: (54, 54)
+
+  Изменения от прошлой версии:
+  - Диск уменьшен с r=36 до r=33 — небольшой отступ от края safe zone
+  - Убрана асимметричная клиновидная засветка → заменена на симметричный
+    овальный блик сверху (как отражение света на лаке пластинки)
+  - Добавлено тонкое внешнее кольцо для чёткого центрирования
+  - Скорректированы бороздки под новый радиус
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ① Vinyl disc — тёплый чёрный, r=33 -->
+    <path
+        android:fillColor="#1C1B1A"
+        android:pathData="M21,54 a33,33 0 1,0 66,0 a33,33 0 1,0 -66,0 Z" />
+
+    <!-- ② Внешнее кольцо диска — для чёткого отделения от фона -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.7"
+        android:strokeAlpha="0.18"
+        android:pathData="M21,54 a33,33 0 1,0 66,0 a33,33 0 1,0 -66,0 Z" />
+
+    <!-- ③ Бороздки (groove rings) — 5 концентрических окружностей -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.55"
+        android:strokeAlpha="0.13"
+        android:pathData="M25,54 a29,29 0 1,0 58,0 a29,29 0 1,0 -58,0 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.5"
+        android:strokeAlpha="0.10"
+        android:pathData="M29,54 a25,25 0 1,0 50,0 a25,25 0 1,0 -50,0 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.5"
+        android:strokeAlpha="0.12"
+        android:pathData="M33,54 a21,21 0 1,0 42,0 a21,21 0 1,0 -42,0 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.45"
+        android:strokeAlpha="0.08"
+        android:pathData="M37,54 a17,17 0 1,0 34,0 a17,17 0 1,0 -34,0 Z" />
+
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.4"
+        android:strokeAlpha="0.09"
+        android:pathData="M40,54 a14,14 0 1,0 28,0 a14,14 0 1,0 -28,0 Z" />
+
+    <!-- ④ Симметричный блик — овал в верхней части диска, не асимметрия -->
+    <!--   Это более реалистичное отражение света на лаке: горизонтальная полоса -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.07"
+        android:pathData="M30,38 Q54,28 78,38 Q54,46 30,38 Z" />
+
+    <!-- ⑤ Центральный лейбл — кремовый круг, r=12 -->
+    <path
+        android:fillColor="#D9D3C8"
+        android:pathData="M42,54 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+
+    <!-- ⑥ Кольцо лейбла -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#2C2A28"
+        android:strokeWidth="0.6"
+        android:strokeAlpha="0.22"
+        android:pathData="M44.5,54 a9.5,9.5 0 1,0 19,0 a9.5,9.5 0 1,0 -19,0 Z" />
+
+    <!-- ⑦ Красная полоса — фирменный акцент #DE533E -->
+    <path
+        android:fillColor="#DE533E"
+        android:pathData="M45.5,52.2 L62.5,52.2 L62.5,55.8 L45.5,55.8 Z" />
+
+    <!-- ⑧ Имитация текста под полосой (декоративно) -->
+    <path
+        android:fillColor="#2C2A28"
+        android:fillAlpha="0.30"
+        android:pathData="M47,58.5 L61,58.5 L61,59.5 L47,59.5 Z" />
+
+    <!-- ⑨ Центральное отверстие — цвет совпадает с фоном иконки (#EAE6DF) -->
+    <path
+        android:fillColor="#EAE6DF"
+        android:pathData="M51.5,54 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 Z" />
+
+</vector>

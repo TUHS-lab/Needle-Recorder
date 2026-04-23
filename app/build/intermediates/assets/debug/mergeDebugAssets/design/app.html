@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!--
+  INSETS: Kotlin применяет setPadding() к FrameLayout-контейнеру.
+  WebView автоматически смещается ниже статус-бара.
+  CSS использует простые фиксированные отступы — env() и CSS vars не нужны.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Needle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════════════════ */
+:root {
+  --base:        #EAE6DF;
+  --highlight:   #FFFFFF;
+  --shadow:      #CFC9C0;
+  --shadow-deep: #B5AEA3;
+  --txt:         #2C2A28;
+  --txt-muted:   #8F8B84;
+  --vinyl:       #1C1B1A;
+  --red:         #DE533E;
+  --green:       #4CAF50;
+  --serif:       'Playfair Display', Georgia, serif;
+  --mono:        'Space Mono', 'Courier New', monospace;
+  --hairline:    rgba(44, 42, 40, 0.14);
+  --bezel:       inset 0 3px 6px rgba(0,0,0,.06),
+                 inset 0 1px 2px rgba(0,0,0,.1),
+                 0 1px 0 rgba(255,255,255,.7);
+  --btn-up:      0 4px 8px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.15),
+                 inset 0 2px 2px rgba(255,255,255,.9);
+  --btn-dn:      0 1px 2px rgba(0,0,0,.1),
+                 inset 0 2px 4px rgba(0,0,0,.08),
+                 inset 0 1px 1px rgba(255,255,255,.5);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESET
+═══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+html, body { width: 100%; height: 100%; }
+
+/* Единая поверхность: один цвет на весь экран, без отдельных «плашек»-градиентов */
+html, body {
+  background: var(--base);
+}
+
+body {
+  color: var(--txt); font-family: var(--mono); overflow: hidden;
+}
+
+#view-playback,
+#view-playback .device {
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SPA ROUTER
+═══════════════════════════════════════════════════════════ */
+.view {
+  position: absolute; inset: 0;
+  display: none; flex-direction: column;
+  opacity: 0; transform: translateY(10px);
+  transition: opacity .22s ease, transform .22s ease;
+  will-change: opacity, transform;
+}
+.view.active  { display: flex; opacity: 1; transform: translateY(0); }
+.view.leaving { opacity: 0; transform: translateY(-6px);
+                transition: opacity .18s ease, transform .18s ease; }
+
+/* ═══════════════════════════════════════════════════════════
+   SHARED COMPONENTS
+   Insets обрабатывает Kotlin (setPadding на FrameLayout-контейнере).
+   Здесь — только дизайн-отступы.
+═══════════════════════════════════════════════════════════ */
+.device { width: 100%; max-width: 480px; height: 100%; display: flex; flex-direction: column; margin: 0 auto; }
+
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 28px;
+  font-size: .7rem; letter-spacing: 2px; font-weight: 700;
+  color: var(--txt-muted); flex-shrink: 0;
+}
+.header-left  { display: flex; align-items: center; gap: 10px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.header-wordmark { display: flex; flex-direction: column; line-height: 1.15; }
+.header-wordmark .header-name { font-size: .7rem; letter-spacing: 2px; font-weight: 700; }
+.header-wordmark .header-sub {
+  font-size: .5rem; font-weight: 700; letter-spacing: 3px; color: var(--txt-muted); text-transform: lowercase;
+}
+
+.power-light {
+  width: 10px; height: 10px; border-radius: 0;
+  background: var(--red); border: 1px solid #111;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.4); flex-shrink: 0;
+}
+.power-light.green {
+  background: var(--green);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.4), 0 0 5px rgba(76,175,80,.4);
+}
+
+.nav-icon {
+  cursor: pointer; padding: 8px 9px;
+  border: 1px solid var(--shadow); border-radius: 6px;
+  color: var(--txt-muted); transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(180deg, #FAFAF8 0%, #EDE9E1 100%);
+  box-shadow: var(--btn-up);
+}
+.nav-icon:active { transform: scale(.94); box-shadow: var(--btn-dn); opacity: .85; }
+.nav-icon svg { display: block; }
+
+.divider {
+  height: 1px; background: var(--shadow-deep);
+  border-bottom: 1px solid var(--highlight); opacity: .6; flex-shrink: 0;
+}
+
+.btn {
+  flex: 1; border: none; outline: none; border-radius: 8px;
+  background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%);
+  box-shadow: var(--btn-up); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .1s ease; font-family: var(--mono);
+}
+.btn:active { transform: translateY(2px); box-shadow: var(--btn-dn); }
+
+.back-btn {
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-size: .7rem; font-weight: 700; letter-spacing: 2px; color: var(--txt);
+}
+.back-btn:active { opacity: .6; }
+
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: rgba(44,42,40,.9); color: #EAE6DF;
+  padding: 10px 20px; border-radius: 20px;
+  font-family: var(--mono); font-size: .7rem; letter-spacing: 1px; font-weight: 700;
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+  white-space: nowrap; z-index: 9999;
+}
+.toast.show { opacity: 1; }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════════════════════════
+   HOME VIEW
+═══════════════════════════════════════════════════════════ */
+#view-home .stage {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 16px 32px;
+  justify-content: space-between;
+}
+
+.prompt {
+  font-family: var(--serif); font-size: 2.4rem; font-style: italic;
+  font-weight: 400; line-height: 1.15; color: #383532; width: 92%;
+  text-shadow: 0 1px 1px rgba(255,255,255,.8);
+  margin-top: 24px;
+}
+
+/* Пластинка: чуть меньше предыдущей версии, полные тени */
+.vinyl-assembly {
+  align-self: flex-end; position: relative;
+  margin-bottom: 12px;
+  width: 188px; height: 188px;
+}
+.vinyl-bezel { position: absolute; inset: -13px; border-radius: 50%; background: var(--base); box-shadow: var(--bezel); }
+.vinyl-disc {
+  position: absolute; inset: 0; border-radius: 50%; background: var(--vinyl);
+  box-shadow: 0 8px 16px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.3);
+  display: flex; justify-content: center; align-items: center; z-index: 2;
+  background-image:
+    radial-gradient(circle, transparent 30%, rgba(255,255,255,.03) 31%, transparent 32%),
+    radial-gradient(circle, transparent 45%, rgba(255,255,255,.05) 46%, transparent 47%),
+    radial-gradient(circle, transparent 60%, rgba(255,255,255,.04) 61%, transparent 62%),
+    radial-gradient(circle, transparent 75%, rgba(255,255,255,.06) 76%, transparent 77%),
+    radial-gradient(circle, transparent 90%, rgba(255,255,255,.02) 91%, transparent 92%);
+}
+.vinyl-reflection {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,.08) 45deg,
+    transparent 90deg, transparent 180deg, rgba(255,255,255,.08) 225deg, transparent 270deg);
+  pointer-events: none; z-index: 3;
+}
+.vinyl-label {
+  width: 67px; height: 67px; border-radius: 50%;
+  background: #D9D3C8; border: 2px solid #111;
+  display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 4;
+}
+.label-text { font-size: .42rem; font-weight: 700; color: var(--txt); letter-spacing: 1px; }
+.vinyl-hole { width: 8px; height: 8px; border-radius: 50%; background: var(--base); box-shadow: inset 0 2px 4px rgba(0,0,0,.6); margin: 6px 0; }
+.tonearm-base {
+  position: absolute; top: -16px; right: -26px; width: 38px; height: 38px; border-radius: 50%;
+  background: #D2CBC0; box-shadow: 0 4px 8px rgba(0,0,0,.2), inset 0 2px 2px rgba(255,255,255,.8); z-index: 10;
+}
+.tonearm {
+  position: absolute; top: 3px; right: -7px; width: 104px; height: 8px;
+  background: linear-gradient(90deg, #A8A196 0%, #C4BDB1 100%);
+  border-radius: 4px; transform-origin: right center; transform: rotate(-55deg);
+  box-shadow: 0 6px 6px rgba(0,0,0,.3), inset 0 1px 1px rgba(255,255,255,.5);
+  z-index: 9; transition: transform .6s cubic-bezier(.5,0,.2,1);
+}
+
+#view-playback .vinyl-assembly { align-self: center; margin-bottom: 0; }
+/* Винил: пауза = freeze на текущем угле, без сброса в 0° */
+#view-playback #pb-disc {
+  animation: spin 2s linear infinite;
+  animation-play-state: paused;
+}
+body.is-playing:not(.is-paused) #view-playback #pb-disc { animation-play-state: running; }
+/* Тонарм: только на воспроизведении на пластинке (−15°); пауза / стоп — начальное −55° из .tonearm */
+body.is-playing:not(.is-paused) #view-playback .tonearm { transform: rotate(-15deg); }
+
+.library-vinyl-scale {
+  width: 188px; height: 188px; margin: 52px auto 8px;
+  transform: scale(1.14); transform-origin: center center;
+}
+.vinyl-assembly--decor { align-self: center; margin-bottom: 0; }
+
+/* Shelf */
+.shelf { height: 160px; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 10px; flex-shrink: 0; }
+.shelf-label { padding: 0 32px 10px; font-size: .65rem; font-weight: 700; letter-spacing: 2px; color: var(--txt-muted); cursor: pointer; }
+.shelf-label:active { opacity: .6; }
+.shelf-track { display: flex; gap: 8px; padding: 0 32px; overflow-x: auto; scrollbar-width: none; }
+.shelf-track::-webkit-scrollbar { display: none; }
+.shelf-slot {
+  flex: 0 0 72px; height: 96px; background: #DDD7CD; box-shadow: var(--bezel);
+  border-radius: 6px; position: relative; display: flex; justify-content: center; align-items: center; cursor: pointer;
+}
+.shelf-slot:active .shelf-item { transform: translateY(2px); }
+.shelf-item {
+  position: absolute; width: 64px; height: 88px; background: var(--base); border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,.1), inset 0 1px 1px rgba(255,255,255,.8);
+  padding: 8px 8px 6px 12px; display: flex; flex-direction: column; justify-content: flex-end;
+  transition: transform .1s;
+}
+.item-spine { position: absolute; left: 4px; top: 6px; bottom: 6px; width: 3px; background: var(--shadow); border-radius: 2px; }
+.item-date  { font-size: .47rem; font-weight: 700; color: var(--txt-muted); text-align: right; line-height: 1.3; }
+.item-time  { font-size: .42rem; color: var(--txt-muted); text-align: right; opacity: .7; margin-top: 1px; }
+.shelf-empty { flex: 0 0 72px; height: 96px; background: #DDD7CD; box-shadow: var(--bezel); border-radius: 6px; }
+
+/* Transport */
+.transport { padding: 16px 32px 20px; flex-shrink: 0; }
+.rec-housing {
+  width: 100%; height: 80px; background: #DCD6CC; border-radius: 12px;
+  box-shadow: var(--bezel); padding: 8px; display: flex;
+}
+.rec-btn {
+  flex: 1; border: none; outline: none; border-radius: 8px;
+  background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%);
+  box-shadow: var(--btn-up); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  transition: all .1s cubic-bezier(.4,0,.2,1);
+}
+.rec-btn-surface { pointer-events: none; display: flex; align-items: center; gap: 16px; }
+.led-indicator {
+  width: 14px; height: 14px; border-radius: 50%; background: #9A958E;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.5), 0 1px 1px rgba(255,255,255,.6);
+  transition: all .2s; flex-shrink: 0;
+}
+.rec-label { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; letter-spacing: 3px; color: var(--txt); transition: color .2s; }
+
+/* Recording state */
+body.is-recording .rec-btn        { transform: translateY(4px); box-shadow: var(--btn-dn);
+                                    background: linear-gradient(180deg,#EAE6DF 0%,#E0DBCF 100%); }
+body.is-recording .led-indicator  { background: var(--red);
+                                    box-shadow: inset 0 1px 2px rgba(255,255,255,.4),
+                                                0 0 12px rgba(222,83,62,.6), 0 0 24px rgba(222,83,62,.3);
+                                    animation: led-pulse 1.1s ease-in-out infinite; }
+body.is-recording .rec-label      { color: var(--red); }
+body.is-recording #view-home .tonearm { transform: rotate(-15deg); }
+body.is-recording #home-status    { color: var(--red); }
+@keyframes led-pulse { 0%,100%{opacity:1} 50%{opacity:.42} }
+
+/* ═══════════════════════════════════════════════════════════
+   PLAYBACK VIEW
+═══════════════════════════════════════════════════════════ */
+#view-playback .stage {
+  flex: 1; display: flex; flex-direction: column; padding: 12px 32px 0;
+}
+.meta-data { font-size: .65rem; font-weight: 700; letter-spacing: 1px; color: var(--txt-muted); margin-bottom: 6px; }
+.meta-name { font-family: var(--serif); font-size: 2.0rem; font-style: italic; font-weight: 400; line-height: 1.15; color: #383532; text-shadow: 0 1px 1px rgba(255,255,255,.8); }
+.pb-spacer { flex: 1; min-height: 16px; }
+
+.scrubber-container { padding: 20px 32px 12px; flex-shrink: 0; }
+/* Лоток прогресса: тот же фон что и экран; глубина только через --bezel */
+.scrubber-track {
+  width: 100%; height: 12px;
+  background: transparent;
+  border-radius: 6px; box-shadow: var(--bezel);
+  position: relative; overflow: hidden; cursor: pointer;
+}
+.scrubber-progress {
+  position: absolute; top: 0; left: 0; height: 100%; width: 0%;
+  background: linear-gradient(90deg, #B5AEA3, #8F8B84); box-shadow: inset 0 1px 1px rgba(255,255,255,.2);
+  transition: width .5s linear; pointer-events: none;
+}
+.scrubber-time { display: flex; justify-content: space-between; margin-top: 10px; font-size: .65rem; font-weight: 700; color: var(--txt-muted); }
+
+.pb-controls { padding: 12px 32px 20px; flex-shrink: 0; }
+.pb-housing {
+  width: 100%; height: 96px;
+  background: transparent;
+  border-radius: 12px; box-shadow: var(--bezel); padding: 10px; display: flex; gap: 10px;
+}
+.icon-play { width: 0; height: 0; border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-left: 18px solid var(--txt); margin-left: 4px; }
+.icon-pause { display: flex; gap: 5px; }
+.pause-bar  { width: 5px; height: 20px; background: var(--txt); border-radius: 2px; }
+.btn-speed  { font-weight: 700; font-size: .8rem; color: var(--txt); letter-spacing: 1px; }
+.btn-delete {
+  flex: .5 !important; color: var(--txt-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-delete svg { display: block; margin: 0; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════════
+   ARCHIVE VIEW — The Library
+═══════════════════════════════════════════════════════════ */
+.archive-top {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 16px; margin-bottom: 28px; padding-top: 2px;
+}
+.archive-top .arch-trash { margin-top: 10px; }
+.archive-top .archive-title {
+  margin-bottom: 0; padding-top: 0; flex: 1; min-width: 0;
+  font-family: var(--serif); font-size: 2.2rem; font-style: italic; color: #383532;
+}
+.arch-trash { cursor: pointer; flex-shrink: 0; }
+.arch-trash.is-disabled { opacity: .35; pointer-events: none; }
+
+.archive-stage { flex: 1; overflow-y: auto; scrollbar-width: none; padding: 12px 24px 20px; }
+.archive-stage::-webkit-scrollbar { display: none; }
+
+.empty-state {
+  display: none; flex-direction: column; align-items: center;
+  text-align: center; padding: 32px 16px 32px; color: var(--txt-muted);
+  font-size: .8rem; letter-spacing: 2px; line-height: 2.2;
+}
+.empty-state-msg { max-width: 280px; }
+
+.archive-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding-bottom: 40px;
+}
+
+.album-sleeve {
+  aspect-ratio: 1/1; background: #DDD7CD; border-radius: 4px;
+  box-shadow: var(--bezel); padding: 6px; position: relative;
+  cursor: pointer; transition: transform .2s ease;
+}
+.album-sleeve:active { transform: scale(.97); }
+
+.sleeve-content {
+  width: 100%; height: 100%; background: var(--base); border-radius: 2px;
+  box-shadow: 0 4px 10px rgba(0,0,0,.1), inset 0 1px 1px rgba(255,255,255,.8);
+  padding: 12px; display: flex; flex-direction: column;
+  justify-content: space-between; position: relative; overflow: hidden;
+}
+
+.album-spine {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: rgba(0,0,0,.05); border-right: 1px solid rgba(0,0,0,.05);
+}
+
+.album-date {
+  font-size: .6rem; font-weight: 700; letter-spacing: 1px; color: var(--txt-muted);
+}
+
+.album-day {
+  font-family: var(--serif); font-size: 1.3rem; font-style: italic;
+  color: var(--txt); margin-top: 4px;
+}
+
+.album-time {
+  font-size: .55rem; color: var(--txt-muted); margin-top: 2px; letter-spacing: 1px;
+}
+
+.album-mood-tag {
+  align-self: flex-start; font-size: .55rem; font-weight: 700; letter-spacing: 1px;
+  padding: 4px 8px; border: 1px solid var(--shadow-deep); border-radius: 20px;
+  color: var(--txt-muted); text-transform: uppercase; margin-top: auto;
+}
+
+.vinyl-peek {
+  position: absolute; right: -15px; top: 10%; bottom: 10%;
+  width: 40px; background: var(--vinyl); border-radius: 50%; z-index: 0; opacity: .7;
+}
+
+.arch-nav-bar {
+  flex-shrink: 0;
+  display: flex; justify-content: center; align-items: center;
+  padding: 16px 24px 20px;
+  background: transparent;
+  box-shadow: none;
+}
+.home-btn {
+  width: 100%; max-width: 432px; height: 50px; border: none; border-radius: 8px;
+  flex: 0 1 432px;
+  background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%);
+  box-shadow: var(--btn-up); font-family: var(--mono); font-weight: 700;
+  font-size: .75rem; letter-spacing: 2px; color: var(--txt); cursor: pointer; transition: all .1s;
+}
+.home-btn:active { transform: translateY(2px); box-shadow: var(--btn-dn); }
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS VIEW
+═══════════════════════════════════════════════════════════ */
+.cfg-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 28px;
+  font-size: .7rem; letter-spacing: 2px; font-weight: 700; color: var(--txt-muted); flex-shrink: 0;
+}
+#view-settings .stage {
+  flex: 1; min-height: 0; padding: 16px 32px 24px; overflow-y: auto; scrollbar-width: none;
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+}
+#view-settings .stage::-webkit-scrollbar { display: none; }
+.settings-title { font-family: var(--serif); font-size: 2.2rem; font-style: italic; margin-bottom: 28px; color: #383532; }
+.settings-group { margin-bottom: 32px; }
+.settings-group.settings-about { margin-bottom: 0; }
+.group-label { display: block; font-size: .65rem; font-weight: 700; letter-spacing: 2px; color: var(--txt-muted); margin-bottom: 18px; }
+.settings-about .group-label { margin-bottom: 8px; text-align: left; }
+.settings-about { text-align: left; }
+.setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+.setting-info .s-label { font-size: .85rem; font-weight: 700; display: block; margin-bottom: 2px; }
+.setting-info .s-sub   { font-size: .65rem; color: var(--txt-muted); }
+
+.toggle { width: 48px; height: 24px; background: #DDD7CD; border-radius: 12px; box-shadow: var(--bezel); position: relative; cursor: pointer; transition: all .3s; flex-shrink: 0; }
+.toggle-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,.15); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+.toggle.on .toggle-knob { transform: translateX(24px); }
+
+.selector { width: 100%; height: 48px; background: #DCD6CC; border-radius: 8px; box-shadow: var(--bezel); padding: 4px; display: flex; margin-top: 10px; }
+.selector-opt { flex: 1; display: flex; align-items: center; justify-content: center; font-size: .6rem; font-weight: 700; cursor: pointer; border-radius: 4px; transition: all .2s; color: var(--txt-muted); letter-spacing: 1px; }
+.selector-opt.on { background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%); box-shadow: var(--btn-up); color: var(--txt); }
+
+.storage-bar { width: 100%; height: 8px; background: #DDD7CD; border-radius: 4px; box-shadow: var(--bezel); margin-top: 10px; overflow: hidden; }
+.storage-fill { height: 100%; background: linear-gradient(90deg, #B5AEA3, #8F8B84); border-radius: 4px; transition: width .6s ease; }
+.storage-label { font-size: .6rem; color: var(--txt-muted); margin-top: 6px; }
+
+.danger-btn { width: 100%; height: 48px; border: 1.5px solid rgba(222,83,62,.4); border-radius: 8px; background: transparent; font-family: var(--mono); font-weight: 700; font-size: .75rem; letter-spacing: 2px; color: var(--red); cursor: pointer; transition: all .15s; margin-top: 12px; }
+.danger-btn:active { background: rgba(222,83,62,.07); transform: scale(.98); }
+
+/* About — сразу под ABOUT, выравнивание как у остальных секций */
+.about-row { display: flex; align-items: baseline; justify-content: flex-start; gap: 8px; padding: 0 0 8px; }
+.about-label { font-size: .6rem; font-weight: 700; letter-spacing: 2px; color: var(--txt-muted); }
+.about-link {
+  font-family: var(--serif); font-size: 1.05rem; font-style: italic; color: var(--txt);
+  cursor: pointer; border-bottom: 1px solid var(--shadow-deep); transition: opacity .15s;
+}
+.about-link:active { opacity: .5; }
+
+.cfg-footer { padding: 8px 32px 20px; flex-shrink: 0; background: transparent; box-shadow: none; }
+.save-btn { width: 100%; height: 56px; border: none; border-radius: 8px; background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%); box-shadow: var(--btn-up); font-family: var(--mono); font-weight: 700; letter-spacing: 2px; color: var(--txt); cursor: pointer; transition: all .1s; }
+.save-btn:active { transform: translateY(2px); box-shadow: var(--btn-dn); }
+
+/* SVG icon helper */
+svg { pointer-events: none; }
+</style>
+</head>
+
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     HOME
+══════════════════════════════════════════════════════════ -->
+<div class="view active" id="view-home"><div class="device">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="power-light"></div>
+      <div class="header-wordmark">
+        <span class="header-name">NEEDLE</span>
+        <span class="header-sub">application</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="nav-icon" onclick="navigate('archive')" title="Archive">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+          <line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+      </div>
+      <div class="nav-icon" onclick="navigate('settings')" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                   a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                   A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                   l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                   A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                   l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                   a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                   l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                   a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+      <span id="home-status">00:00</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <h1 class="prompt" id="daily-prompt">What do you want to remember?</h1>
+    <div class="vinyl-assembly">
+      <div class="vinyl-bezel"></div>
+      <div class="vinyl-disc" id="home-disc">
+        <div class="vinyl-reflection"></div>
+        <div class="vinyl-label">
+          <span class="label-text">VOL</span>
+          <div class="vinyl-hole"></div>
+          <span class="label-text" id="vol-num">01</span>
+        </div>
+      </div>
+      <div class="tonearm-base"></div>
+      <div class="tonearm"></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="shelf">
+    <div class="shelf-label" onclick="navigate('archive')">ARCHIVE // RECENT ›</div>
+    <div class="shelf-track" id="shelf-track">
+      <div class="shelf-empty"></div>
+      <div class="shelf-empty"></div>
+      <div class="shelf-empty"></div>
+    </div>
+  </div>
+
+  <div class="transport">
+    <div class="rec-housing">
+      <button class="rec-btn" onclick="toggleRecord()">
+        <div class="rec-btn-surface">
+          <div class="led-indicator"></div>
+          <span class="rec-label" id="rec-label">RECORD</span>
+        </div>
+      </button>
+    </div>
+  </div>
+
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     PLAYBACK
+══════════════════════════════════════════════════════════ -->
+<div class="view" id="view-playback"><div class="device">
+
+  <div class="header">
+    <div class="back-btn" onclick="navigate('archive')">‹ BACK</div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="power-light green"></div>
+      <span>PLAYBACK</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="meta-data" id="pb-meta-date">—</div>
+    <h1 class="meta-name" id="pb-meta-name">Loading…</h1>
+    <!-- Спейсеры: пластинка по центру stage -->
+    <div class="pb-spacer"></div>
+    <div class="vinyl-assembly">
+      <div class="vinyl-bezel"></div>
+      <div class="vinyl-disc" id="pb-disc">
+        <div class="vinyl-reflection"></div>
+        <div class="vinyl-label">
+          <span class="label-text">SIDE A</span>
+          <div class="vinyl-hole"></div>
+          <span class="label-text" id="pb-dur-label">00:00</span>
+        </div>
+      </div>
+      <div class="tonearm-base"></div>
+      <div class="tonearm"></div>
+    </div>
+    <div class="pb-spacer"></div>
+  </div>
+
+  <div class="scrubber-container">
+    <div class="scrubber-track" onclick="onScrubberClick(event)">
+      <div class="scrubber-progress" id="pb-progress"></div>
+    </div>
+    <div class="scrubber-time">
+      <span id="pb-time-cur">00:00</span>
+      <span id="pb-time-tot">00:00</span>
+    </div>
+  </div>
+
+  <div class="pb-controls">
+    <div class="pb-housing">
+      <button class="btn" onclick="togglePlay()">
+        <div id="pb-play-icon"><div class="icon-play"></div></div>
+      </button>
+      <button class="btn" style="flex:.5;" onclick="cycleSpeed()">
+        <span class="btn-speed" id="pb-speed-label">1.0×</span>
+      </button>
+      <button class="btn btn-delete" onclick="deleteAndGoBack()" title="Delete">
+        <svg class="icon-trash" width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="7" x2="20" y2="7"/>
+          <line x1="10" y1="7" x2="10" y2="4"/>
+          <line x1="14" y1="7" x2="14" y2="4"/>
+          <line x1="10" y1="4" x2="14" y2="4"/>
+          <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ARCHIVE
+══════════════════════════════════════════════════════════ -->
+<div class="view" id="view-archive"><div class="device">
+
+  <div class="archive-stage">
+    <div class="archive-top">
+      <h1 class="archive-title">The Library</h1>
+      <div class="nav-icon arch-trash" id="arch-delete-all" onclick="clearAllFromArchive()" title="Delete all recordings">
+        <svg class="icon-trash" width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="7" x2="20" y2="7"/>
+          <line x1="10" y1="7" x2="10" y2="4"/>
+          <line x1="14" y1="7" x2="14" y2="4"/>
+          <line x1="10" y1="4" x2="14" y2="4"/>
+          <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/>
+        </svg>
+      </div>
+    </div>
+    <div class="empty-state" id="arch-empty">
+      <div class="empty-state-msg">NO RECORDINGS YET.<br>START YOUR FIRST SESSION.</div>
+      <div class="library-vinyl-scale">
+        <div class="vinyl-assembly vinyl-assembly--decor">
+          <div class="vinyl-bezel"></div>
+          <div class="vinyl-disc">
+            <div class="vinyl-reflection"></div>
+            <div class="vinyl-label">
+              <span class="label-text">VOL</span>
+              <div class="vinyl-hole"></div>
+              <span class="label-text">—</span>
+            </div>
+          </div>
+          <div class="tonearm-base"></div>
+          <div class="tonearm"></div>
+        </div>
+      </div>
+    </div>
+    <div class="archive-grid" id="arch-list"></div>
+  </div>
+
+  <div class="arch-nav-bar">
+    <button class="home-btn" onclick="navigate('home')">RETURN TO DECK</button>
+  </div>
+
+</div></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SETTINGS
+══════════════════════════════════════════════════════════ -->
+<div class="view" id="view-settings"><div class="device">
+
+  <div class="cfg-header">
+    <span>RECORDING SETUP</span>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div class="nav-icon" onclick="navigate('archive')" title="Archive">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
+          <line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+      </div>
+      <div class="nav-icon" onclick="navigate('home')" title="Record">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="stage">
+    <h1 class="settings-title">Recording Setup</h1>
+
+    <div class="settings-group">
+      <span class="group-label">RECORDING // QUALITY</span>
+      <div class="setting-info" style="margin-bottom:8px;">
+        <span class="s-label">Audio Quality</span>
+        <span class="s-sub">Affects file size per minute</span>
+      </div>
+      <div class="selector" id="sel-quality">
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-quality')" data-val="64">COMPACT</div>
+        <div class="selector-opt on" onclick="selectOpt(this,'sel-quality')" data-val="128">STANDARD</div>
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-quality')" data-val="256">HI-FI</div>
+      </div>
+      <div class="setting-item" style="margin-top:18px;">
+        <div class="setting-info">
+          <span class="s-label">Silence Detection</span>
+          <span class="s-sub">Pause timer on silence (&gt; 3 s)</span>
+        </div>
+        <div class="toggle" id="tog-silence" onclick="toggleTog(this)"><div class="toggle-knob"></div></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <span class="group-label">PLAYBACK // DEFAULTS</span>
+      <div class="setting-info" style="margin-bottom:8px;">
+        <span class="s-label">Default Speed</span>
+        <span class="s-sub">Applied when opening a recording</span>
+      </div>
+      <div class="selector" id="sel-speed">
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-speed')" data-val="0.75">0.75×</div>
+        <div class="selector-opt on" onclick="selectOpt(this,'sel-speed')" data-val="1.0">1.0×</div>
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-speed')" data-val="1.25">1.25×</div>
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-speed')" data-val="1.5">1.5×</div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <span class="group-label">STORAGE // ARCHIVE</span>
+      <div class="setting-info" style="margin-bottom:8px;">
+        <span class="s-label">Used Space</span>
+        <span class="s-sub">All recordings on device</span>
+      </div>
+      <div class="storage-bar"><div class="storage-fill" id="storage-fill" style="width:0%"></div></div>
+      <div class="storage-label" id="storage-label">Calculating…</div>
+
+      <div class="setting-info" style="margin-bottom:8px;margin-top:18px;">
+        <span class="s-label">Auto-delete</span>
+        <span class="s-sub">Remove recordings older than</span>
+      </div>
+      <div class="selector" id="sel-autodel">
+        <div class="selector-opt on" onclick="selectOpt(this,'sel-autodel')" data-val="0">NEVER</div>
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-autodel')" data-val="30">30 DAYS</div>
+        <div class="selector-opt"    onclick="selectOpt(this,'sel-autodel')" data-val="90">90 DAYS</div>
+      </div>
+      <button class="danger-btn" onclick="clearAllSettings()">DELETE ALL RECORDINGS</button>
+    </div>
+
+    <!-- Made by TUHS — сразу под ABOUT -->
+    <div class="settings-group settings-about">
+      <span class="group-label">ABOUT</span>
+      <div class="about-row">
+        <span class="about-label">MADE BY</span>
+        <span class="about-link" onclick="openUrl('https://tuhs.online')">TUHS</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cfg-footer">
+    <button class="save-btn" onclick="saveSettings()">APPLY CHANGES</button>
+  </div>
+
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════
+   ROUTER
+═══════════════════════════════════════════════════════════ */
+var currentView = 'home';
+
+function navigate(view) { __navigate(view); }
+
+function __navigate(view) {
+  if (!['home','playback','archive','settings'].includes(view)) return;
+  if (view === currentView) return;
+
+  var prev = document.getElementById('view-' + currentView);
+  var next = document.getElementById('view-' + view);
+
+  if (prev) {
+    prev.classList.add('leaving');
+    setTimeout(function() { prev.classList.remove('active','leaving'); prev.style.display='none'; }, 180);
+  }
+  setTimeout(function() {
+    next.style.display = 'flex';
+    next.getBoundingClientRect();
+    next.classList.add('active');
+    currentView = view;
+    onEnter(view);
+  }, prev ? 80 : 0);
+}
+
+function onEnter(v) {
+  if (v === 'home')     onEnterHome();
+  if (v === 'archive')  onEnterArchive();
+  if (v === 'settings') onEnterSettings();
+}
+
+function handleBackPress() {
+  if (currentView === 'home') {
+    if (typeof Android !== 'undefined') Android.closeApp();
+  } else if (currentView === 'playback') {
+    navigate('archive');
+  } else {
+    navigate('home');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOME
+═══════════════════════════════════════════════════════════ */
+var PROMPTS = [
+  'What do you want to remember?','Speak your thoughts.',
+  'Something worth capturing?','Leave yourself a note.',
+  'What happened today?','Record your memory.',
+  "What's on your mind?",'A moment to hold onto.'
+];
+document.getElementById('daily-prompt').textContent = PROMPTS[new Date().getDay() % PROMPTS.length];
+
+var recSeconds = 0, recTimer = null;
+
+function onEnterHome() { refreshShelf(); }
+
+function toggleRecord() {
+  document.body.classList.contains('is-recording') ? stopRec() : startRec();
+}
+function startRec() {
+  if (typeof Android !== 'undefined') Android.startRecording(); else onRecordingStarted();
+}
+function stopRec() {
+  if (typeof Android !== 'undefined') Android.stopRecording(); else onRecordingStopped('/mock/rec_2024-01-01_12-00-00.m4a');
+}
+
+function onRecordingStarted() {
+  document.body.classList.add('is-recording');
+  document.getElementById('rec-label').textContent = 'STOP';
+  recSeconds = 0;
+  recTimer = setInterval(function() {
+    recSeconds++;
+    var t = fmt(recSeconds);
+    document.getElementById('home-status').textContent = t;
+    document.getElementById('vol-num').textContent = String(recSeconds % 99 + 1).padStart(2,'0');
+  }, 1000);
+  setTimeout(function() {
+    if (document.body.classList.contains('is-recording'))
+      document.getElementById('home-disc').style.animation = 'spin 1.8s linear infinite';
+  }, 600);
+}
+
+function onRecordingStopped(filePath) {
+  document.body.classList.remove('is-recording');
+  document.getElementById('home-disc').style.animation = 'none';
+  document.getElementById('rec-label').textContent = 'RECORD';
+  document.getElementById('home-status').textContent = '00:00';
+  document.getElementById('vol-num').textContent = '01';
+  clearInterval(recTimer);
+  if (filePath) { localStorage.setItem('lastRecording', filePath); showToast('SAVED — TAP TO PLAY'); refreshShelf(); }
+}
+
+function onPermissionDenied() {
+  document.getElementById('home-status').textContent = 'NO MIC';
+  showToast('MIC ACCESS DENIED');
+}
+
+function refreshShelf() {
+  var track = document.getElementById('shelf-track');
+  var recs   = getRecordings();
+  var recent = recs.slice(0, 5);
+  track.innerHTML = '';
+  recent.forEach(function(rec) {
+    var d       = parseRecDate(rec.date || '');
+    var dateStr = d ? d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase() : '—';
+    var timeStr = d ? d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+    var slot = document.createElement('div');
+    slot.className = 'shelf-slot';
+    slot.innerHTML = '<div class="shelf-item"><div class="item-spine"></div>' +
+      '<span class="item-date">' + esc(dateStr) + '</span>' +
+      (timeStr ? '<span class="item-time">' + esc(timeStr) + '</span>' : '') + '</div>';
+    slot.addEventListener('click', function() { openPlayback(rec.path); });
+    track.appendChild(slot);
+  });
+  for (var i = recent.length; i < 5; i++) {
+    var em = document.createElement('div'); em.className = 'shelf-empty'; track.appendChild(em);
+  }
+  document.getElementById('vol-num').textContent = String(recs.length + 1).padStart(2,'0');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PLAYBACK — с фиксом replay / pause
+═══════════════════════════════════════════════════════════ */
+var pbFilePath  = null, pbDurSec = 0, pbCurSec = 0;
+var pbPlaying   = false, pbPaused = false, pbPreparing = false;
+var pbPbTimer   = null, pbSpeedIdx = 1;
+var pbSpeeds    = [0.75, 1.0, 1.25, 1.5, 2.0];
+
+function openPlayback(filePath) {
+  pbFilePath = filePath;
+  localStorage.setItem('currentPlayback', filePath);
+
+  try {
+    var s  = JSON.parse(localStorage.getItem('needle_settings') || '{}');
+    var sp = parseFloat(s.speed || '1.0');
+    var idx = pbSpeeds.indexOf(sp);
+    pbSpeedIdx = idx >= 0 ? idx : 1;
+  } catch(e) { pbSpeedIdx = 1; }
+
+  navigate('playback');
+  resetPbUI();
+  populateMeta();
+  pbPreparing = true;
+  if (typeof Android !== 'undefined') Android.playRecording(pbFilePath);
+}
+
+function populateMeta() {
+  if (!pbFilePath) return;
+  var parts = pbFilePath.split('/');
+  var fname = parts[parts.length-1].replace('rec_','').replace('.m4a','');
+  var d = parseRecDate(fname);
+  if (d) {
+    document.getElementById('pb-meta-date').textContent =
+      d.toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'}).toUpperCase() +
+      ' // ' + d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('pb-meta-name').textContent =
+      d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  } else {
+    document.getElementById('pb-meta-date').textContent = '—';
+    document.getElementById('pb-meta-name').textContent = fname;
+  }
+}
+
+function parseRecDate(str) {
+  var m = str.match(/(\d{4})-(\d{2})-(\d{2})[\s_](\d{2})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]) : null;
+}
+
+function resetPbUI() {
+  pbPlaying = false; pbPaused = false; pbPreparing = false;
+  pbCurSec = 0; pbDurSec = 0;
+  document.body.classList.remove('is-playing','is-paused');
+  document.getElementById('pb-progress').style.width = '0%';
+  document.getElementById('pb-time-cur').textContent = '00:00';
+  document.getElementById('pb-time-tot').textContent = '00:00';
+  document.getElementById('pb-dur-label').textContent = '00:00';
+  document.getElementById('pb-speed-label').textContent = pbSpeeds[pbSpeedIdx].toFixed(2).replace(/\.00$/,'.0') + '×';
+  setPbIcon(false); clearInterval(pbPbTimer);
+}
+
+/* Kotlin → JS: воспроизведение началось */
+function onPlaybackStarted(durationSec) {
+  pbPreparing = false;
+  pbDurSec = durationSec || 0; pbCurSec = 0;
+  pbPlaying = true; pbPaused = false;
+  document.body.classList.add('is-playing'); document.body.classList.remove('is-paused');
+  document.getElementById('pb-time-tot').textContent  = fmt(pbDurSec);
+  document.getElementById('pb-dur-label').textContent = fmt(pbDurSec);
+  setPbIcon(true); startPbTimer();
+  if (typeof Android !== 'undefined') Android.setPlaybackSpeed(pbSpeeds[pbSpeedIdx]);
+}
+
+/* Kotlin → JS: воспроизведение закончено */
+function onPlaybackFinished() {
+  pbPlaying = false; pbPaused = false; pbPreparing = false;
+  document.body.classList.remove('is-playing'); document.body.classList.add('is-paused');
+  document.getElementById('pb-progress').style.width = '100%';
+  document.getElementById('pb-time-cur').textContent = fmt(pbDurSec);
+  setPbIcon(false); clearInterval(pbPbTimer);
+}
+
+function onPlaybackPaused() {
+  if (!pbPaused) {
+    pbPaused = true; document.body.classList.add('is-paused');
+    setPbIcon(false); clearInterval(pbPbTimer);
+  }
+}
+
+function startPbTimer() {
+  clearInterval(pbPbTimer);
+  pbPbTimer = setInterval(function() {
+    if (pbPlaying && !pbPaused && pbCurSec < pbDurSec) {
+      pbCurSec++;
+      var pct = pbDurSec > 0 ? pbCurSec / pbDurSec * 100 : 0;
+      document.getElementById('pb-progress').style.width = pct + '%';
+      document.getElementById('pb-time-cur').textContent = fmt(pbCurSec);
+      document.getElementById('pb-dur-label').textContent = fmt(pbCurSec);
+      if (pbCurSec >= pbDurSec) clearInterval(pbPbTimer);
+    }
+  }, 1000);
+}
+
+/* ─── togglePlay: pause/resume И повторный запуск ─── */
+function togglePlay() {
+  if (pbPreparing) return; // Идёт подготовка — ждём
+
+  if (!pbPlaying) {
+    /* Запись закончилась или ещё не начиналась → перезапуск */
+    if (pbFilePath) {
+      pbPreparing = true;
+      document.getElementById('pb-progress').style.width = '0%';
+      document.getElementById('pb-time-cur').textContent = '00:00';
+      pbCurSec = 0;
+      document.body.classList.remove('is-paused');
+      if (typeof Android !== 'undefined') Android.playRecording(pbFilePath);
+    }
+    return;
+  }
+
+  if (pbPaused) {
+    if (typeof Android !== 'undefined') Android.resumePlayback();
+    pbPaused = false; document.body.classList.remove('is-paused'); setPbIcon(true); startPbTimer();
+  } else {
+    if (typeof Android !== 'undefined') Android.pausePlayback();
+    pbPaused = true; document.body.classList.add('is-paused'); setPbIcon(false); clearInterval(pbPbTimer);
+  }
+}
+
+function setPbIcon(isPlaying) {
+  document.getElementById('pb-play-icon').innerHTML = isPlaying
+    ? '<div class="icon-pause"><div class="pause-bar"></div><div class="pause-bar"></div></div>'
+    : '<div class="icon-play"></div>';
+}
+
+function cycleSpeed() {
+  pbSpeedIdx = (pbSpeedIdx + 1) % pbSpeeds.length;
+  var sp = pbSpeeds[pbSpeedIdx];
+  document.getElementById('pb-speed-label').textContent = sp.toFixed(2).replace(/\.00$/,'.0') + '×';
+  if (typeof Android !== 'undefined') Android.setPlaybackSpeed(sp);
+}
+
+function onScrubberClick(e) {
+  var rect  = e.currentTarget.getBoundingClientRect();
+  var ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  if (typeof Android !== 'undefined') Android.seekTo(Math.floor(ratio * pbDurSec * 1000));
+  pbCurSec = Math.floor(ratio * pbDurSec);
+  document.getElementById('pb-progress').style.width = (ratio*100) + '%';
+  document.getElementById('pb-time-cur').textContent = fmt(pbCurSec);
+}
+
+deleteAndGoBack._t = null;
+function deleteAndGoBack() {
+  if (deleteAndGoBack._t) {
+    clearTimeout(deleteAndGoBack._t); deleteAndGoBack._t = null;
+    clearInterval(pbPbTimer);
+    document.body.classList.remove('is-playing','is-paused');
+    if (typeof Android !== 'undefined') { Android.stopPlayback(); Android.deleteRecording(pbFilePath || ''); }
+    pbFilePath = null;
+    navigate('archive');
+  } else {
+    showToast('TAP AGAIN TO DELETE');
+    deleteAndGoBack._t = setTimeout(function() { deleteAndGoBack._t = null; }, 2500);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ARCHIVE
+═══════════════════════════════════════════════════════════ */
+var ARCHIVE_MOODS = ['Pensive','Light','Somber','Grateful','Chaotic','Quiet','Heavy','Inspired','Open','Restless'];
+
+function stableArchiveMood(name) {
+  var hash = 0;
+  var s = String(name || '');
+  for (var i = 0; i < s.length; i++) hash += s.charCodeAt(i);
+  return ARCHIVE_MOODS[hash % ARCHIVE_MOODS.length];
+}
+
+function onEnterArchive() { renderArchive(); }
+
+function renderArchive() {
+  var recs  = getRecordings();
+  var list  = document.getElementById('arch-list');
+  var empty = document.getElementById('arch-empty');
+  var trash = document.getElementById('arch-delete-all');
+  if (trash) trash.classList.toggle('is-disabled', recs.length === 0);
+
+  if (recs.length === 0) { empty.style.display = 'flex'; list.innerHTML = ''; return; }
+  empty.style.display = 'none'; list.innerHTML = '';
+
+  recs.forEach(function(rec) {
+    var d       = parseRecDate(rec.date || '');
+    var dayStr  = d ? d.toLocaleDateString('en-US',{weekday:'long'}) : '—';
+    var dateStr = d ? d.toLocaleDateString('en-US',{month:'short',day:'numeric'}).toUpperCase() : '—';
+    var timeStr = d ? d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}) : '';
+    var mood    = stableArchiveMood(rec.name || rec.path || '');
+
+    var el = document.createElement('div');
+    el.className = 'album-sleeve';
+    el.innerHTML =
+      '<div class="vinyl-peek"></div>' +
+      '<div class="sleeve-content">' +
+        '<div class="album-spine"></div>' +
+        '<div>' +
+          '<div class="album-date">' + esc(dateStr) + '</div>' +
+          '<div class="album-day">' + esc(dayStr) + '</div>' +
+          '<div class="album-time">' + esc(timeStr) + '</div>' +
+        '</div>' +
+        '<div class="album-mood-tag">' + esc(mood) + '</div>' +
+      '</div>';
+    el.addEventListener('click', function() { openPlayback(rec.path); });
+    list.appendChild(el);
+  });
+}
+
+clearAllFromArchive._t = null;
+function clearAllFromArchive() {
+  if (clearAllFromArchive._t) {
+    clearTimeout(clearAllFromArchive._t); clearAllFromArchive._t = null; _doDeleteAll();
+  } else {
+    showToast('TAP AGAIN TO DELETE ALL');
+    clearAllFromArchive._t = setTimeout(function() { clearAllFromArchive._t = null; }, 2500);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════════════════════ */
+function onEnterSettings() { loadSettings(); loadStorageInfo(); }
+function selectOpt(el) {
+  el.parentElement.querySelectorAll('.selector-opt').forEach(function(o){ o.classList.remove('on'); });
+  el.classList.add('on');
+}
+function toggleTog(el) { el.classList.toggle('on'); }
+
+function loadStorageInfo() {
+  var recs = getRecordings();
+  var totalBytes = recs.reduce(function(s,r){ return s + (r.size||0); }, 0);
+  var totalMB    = (totalBytes/(1024*1024)).toFixed(1);
+  var pct        = Math.min(totalBytes/(100*1024*1024)*100, 100);
+  document.getElementById('storage-label').textContent =
+    recs.length + ' recording' + (recs.length !== 1 ? 's' : '') + ' · ' + totalMB + ' MB';
+  document.getElementById('storage-fill').style.width = pct + '%';
+}
+
+clearAllSettings._t = null;
+function clearAllSettings() {
+  if (clearAllSettings._t) {
+    clearTimeout(clearAllSettings._t); clearAllSettings._t = null;
+    _doDeleteAll(); loadStorageInfo();
+  } else {
+    showToast('TAP AGAIN TO CONFIRM');
+    clearAllSettings._t = setTimeout(function() { clearAllSettings._t = null; }, 2500);
+  }
+}
+
+function _doDeleteAll() {
+  getRecordings().forEach(function(r) {
+    if (r.path && typeof Android !== 'undefined') Android.deleteRecording(r.path);
+  });
+  showToast('ALL RECORDINGS DELETED');
+  renderArchive(); refreshShelf();
+}
+
+function saveSettings() {
+  var s = {
+    quality: getSelVal('sel-quality'), speed: getSelVal('sel-speed'),
+    autodel: getSelVal('sel-autodel'),
+    silence: document.getElementById('tog-silence').classList.contains('on')
+  };
+  localStorage.setItem('needle_settings', JSON.stringify(s));
+  showToast('SETTINGS SAVED');
+  setTimeout(function(){ navigate('home'); }, 700);
+}
+
+function loadSettings() {
+  try {
+    var s = JSON.parse(localStorage.getItem('needle_settings') || '{}');
+    if (s.quality)         setSelVal('sel-quality', s.quality);
+    if (s.speed)           setSelVal('sel-speed',   s.speed);
+    if (s.autodel != null) setSelVal('sel-autodel', s.autodel);
+    document.getElementById('tog-silence').classList.toggle('on', !!s.silence);
+  } catch(e) {}
+}
+
+function getSelVal(id) {
+  var a = document.querySelector('#'+id+' .selector-opt.on');
+  return a ? (a.dataset.val || a.textContent.trim()) : null;
+}
+function setSelVal(id, val) {
+  document.querySelectorAll('#'+id+' .selector-opt').forEach(function(o){
+    o.classList.toggle('on', String(o.dataset.val) === String(val));
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════════════════ */
+function getRecordings() {
+  if (typeof Android === 'undefined') return [];
+  try { return JSON.parse(Android.getRecordingsList()) || []; } catch(e) { return []; }
+}
+
+function fmt(s) {
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2500);
+}
+
+function openUrl(url) {
+  if (typeof Android !== 'undefined') Android.openUrl(url); else window.open(url,'_blank');
+}
+
+window.addEventListener('load', function() { refreshShelf(); console.log('[Needle] ready'); });
+</script>
+</body>
+</html>

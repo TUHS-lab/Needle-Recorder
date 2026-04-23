@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Voice Journal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --base-color: #EAE6DF;
+        --highlight: #FFFFFF;
+        --shadow: #CFC9C0;
+        --shadow-deep: #B5AEA3;
+        --text-primary: #2C2A28;
+        --text-muted: #8F8B84;
+        --vinyl-base: #1C1B1A;
+        --accent-red: #DE533E;
+        --font-serif: 'Playfair Display', Georgia, serif;
+        --font-mono: 'Space Mono', 'Courier New', monospace;
+        --bezel-inset: inset 0 3px 6px rgba(0,0,0,0.06), inset 0 1px 2px rgba(0,0,0,0.1), 0 1px 0 rgba(255,255,255,0.7);
+        --btn-outset: 0 4px 8px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.15), inset 0 2px 2px rgba(255,255,255,0.9);
+        --btn-active: 0 1px 2px rgba(0,0,0,0.1), 0 0px 0px rgba(0,0,0,0.1), inset 0 2px 4px rgba(0,0,0,0.08), inset 0 1px 1px rgba(255,255,255,0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+        background-color: var(--base-color);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-image: radial-gradient(circle at 50% 0%, #F5F3EF 0%, #E0DCD4 100%);
+        overflow: hidden;
+    }
+
+    .device {
+        width: 100%;
+        max-width: 480px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 24px 32px 16px;
+        font-size: 0.7rem;
+        letter-spacing: 2px;
+        font-weight: 700;
+        color: var(--text-muted);
+    }
+
+    .header-left { display: flex; align-items: center; gap: 8px; }
+
+    .power-light {
+        width: 10px; height: 10px;
+        background: var(--accent-red);
+        border: 1px solid #111;
+        box-shadow: inset 0 1px 2px rgba(255,255,255,0.4);
+    }
+
+    .header-right { color: var(--text-muted); transition: color 0.3s ease; }
+
+    .nav-icons { display: flex; gap: 16px; align-items: center; }
+
+    .nav-icon {
+        cursor: pointer;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 4px 8px;
+        border: 1px solid var(--shadow);
+        border-radius: 4px;
+        color: var(--text-muted);
+        transition: all 0.15s ease;
+    }
+
+    .nav-icon:active { transform: scale(0.95); }
+
+    .stage {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 32px;
+        position: relative;
+    }
+
+    .prompt {
+        font-family: var(--font-serif);
+        font-size: 2.5rem;
+        font-style: italic;
+        font-weight: 400;
+        line-height: 1.15;
+        color: #383532;
+        width: 95%;
+        text-shadow: 0 1px 1px rgba(255,255,255,0.8);
+        margin-bottom: auto;
+    }
+
+    .vinyl-assembly {
+        align-self: flex-end;
+        position: relative;
+        margin-top: 40px;
+        margin-right: 20px;
+        width: 180px;
+        height: 180px;
+    }
+
+    .vinyl-bezel {
+        position: absolute;
+        inset: -12px;
+        border-radius: 50%;
+        background: var(--base-color);
+        box-shadow: var(--bezel-inset);
+    }
+
+    .vinyl-disc {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: var(--vinyl-base);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.3);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 2;
+        background-image:
+            radial-gradient(circle, transparent 30%, rgba(255,255,255,0.03) 31%, transparent 32%),
+            radial-gradient(circle, transparent 45%, rgba(255,255,255,0.05) 46%, transparent 47%),
+            radial-gradient(circle, transparent 60%, rgba(255,255,255,0.04) 61%, transparent 62%),
+            radial-gradient(circle, transparent 75%, rgba(255,255,255,0.06) 76%, transparent 77%),
+            radial-gradient(circle, transparent 90%, rgba(255,255,255,0.02) 91%, transparent 92%);
+    }
+
+    .vinyl-reflection {
+        position: absolute; inset: 0; border-radius: 50%;
+        background: conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.08) 45deg, transparent 90deg, transparent 180deg, rgba(255,255,255,0.08) 225deg, transparent 270deg);
+        pointer-events: none; z-index: 3;
+    }
+
+    .vinyl-label {
+        width: 64px; height: 64px; border-radius: 50%;
+        background: #D9D3C8; border: 2px solid #111;
+        display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        position: relative; z-index: 4;
+    }
+
+    .label-text { font-size: 0.4rem; font-weight: 700; color: var(--text-primary); letter-spacing: 1px; }
+
+    .vinyl-hole {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--base-color);
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+        margin: 6px 0;
+    }
+
+    .tonearm-base {
+        position: absolute; top: -15px; right: -25px;
+        width: 36px; height: 36px; border-radius: 50%;
+        background: #D2CBC0;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2), inset 0 2px 2px rgba(255,255,255,0.8);
+        z-index: 10;
+    }
+
+    .tonearm {
+        position: absolute; top: 3px; right: -7px;
+        width: 100px; height: 8px;
+        background: linear-gradient(90deg, #A8A196 0%, #C4BDB1 100%);
+        border-radius: 4px;
+        transform-origin: right center;
+        transform: rotate(-55deg);
+        box-shadow: 0 6px 6px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.5);
+        z-index: 9;
+        transition: transform 0.6s cubic-bezier(0.5, 0, 0.2, 1);
+    }
+
+    .divider {
+        height: 1px; width: 100%;
+        background: var(--shadow-deep);
+        border-bottom: 1px solid var(--highlight);
+        opacity: 0.6;
+    }
+
+    .shelf { height: 180px; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 16px; }
+
+    .shelf-label { padding: 0 32px 12px; font-size: 0.65rem; font-weight: 700; letter-spacing: 2px; color: var(--text-muted); cursor: pointer; }
+    .shelf-label:active { opacity: 0.6; }
+
+    .shelf-track { display: flex; gap: 8px; padding: 0 32px; overflow-x: auto; scrollbar-width: none; }
+    .shelf-track::-webkit-scrollbar { display: none; }
+
+    .shelf-slot {
+        flex: 0 0 72px; height: 96px;
+        background: #DDD7CD;
+        box-shadow: var(--bezel-inset);
+        border-radius: 6px;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .shelf-slot:active .shelf-item { transform: translateY(2px); }
+
+    .shelf-item {
+        position: absolute; width: 64px; height: 88px;
+        background: var(--base-color); border-radius: 4px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1), inset 0 1px 1px rgba(255,255,255,0.8);
+        padding: 8px;
+        display: flex; flex-direction: column; justify-content: flex-end;
+        transition: transform 0.1s ease;
+    }
+
+    .item-spine {
+        position: absolute; left: 6px; top: 6px; bottom: 6px;
+        width: 3px; background: var(--shadow); border-radius: 2px;
+        box-shadow: inset 1px 0 2px rgba(0,0,0,0.1);
+    }
+
+    .item-date { font-size: 0.5rem; font-weight: 700; color: var(--text-muted); text-align: right; }
+
+    .shelf-empty {
+        flex: 0 0 72px; height: 96px;
+        background: #DDD7CD;
+        box-shadow: var(--bezel-inset);
+        border-radius: 6px;
+    }
+
+    .transport { padding: 24px 32px 48px; }
+
+    .rec-housing {
+        width: 100%; height: 80px;
+        background: #DCD6CC; border-radius: 12px;
+        box-shadow: var(--bezel-inset);
+        padding: 8px; display: flex;
+    }
+
+    .rec-btn {
+        flex: 1; border: none; outline: none; border-radius: 8px;
+        background: linear-gradient(180deg, #FAFAF8 0%, #E8E4DB 100%);
+        box-shadow: var(--btn-outset);
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center; gap: 16px;
+        transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+    }
+
+    .rec-btn-surface { pointer-events: none; display: flex; align-items: center; gap: 16px; }
+
+    .led-indicator {
+        width: 14px; height: 14px; border-radius: 50%;
+        background: #9A958E;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 1px rgba(255,255,255,0.6);
+        transition: all 0.2s ease;
+    }
+
+    .rec-label {
+        font-family: var(--font-mono); font-size: 1.1rem;
+        font-weight: 700; letter-spacing: 3px;
+        color: var(--text-primary);
+        transition: color 0.2s ease;
+    }
+
+    /* ── Recording state ── */
+    body.is-recording .rec-btn {
+        transform: translateY(4px);
+        box-shadow: var(--btn-active);
+        background: linear-gradient(180deg, #EAE6DF 0%, #E0DBCF 100%);
+    }
+
+    body.is-recording .led-indicator {
+        background: var(--accent-red);
+        box-shadow: inset 0 1px 2px rgba(255,255,255,0.4), 0 0 12px rgba(222,83,62,0.6), 0 0 24px rgba(222,83,62,0.3);
+    }
+
+    body.is-recording .rec-label { color: var(--accent-red); }
+    body.is-recording .tonearm { transform: rotate(-15deg); }
+    body.is-recording .header-right { color: var(--accent-red); }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    .toast {
+        position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%);
+        background: rgba(44,42,40,0.9); color: #EAE6DF;
+        padding: 10px 20px; border-radius: 20px;
+        font-size: 0.7rem; letter-spacing: 1px; font-weight: 700;
+        opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        white-space: nowrap; z-index: 999;
+    }
+
+    .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="device">
+
+    <div class="header">
+        <div class="header-left">
+            <div class="power-light"></div>
+            <span>OMNI-JRNL</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <div class="nav-icon" onclick="goToArchive()">ARCHIVE</div>
+            <div class="nav-icon" onclick="goToSettings()">CFG</div>
+            <div class="header-right" id="status-display">SYS.RDY // 00:00</div>
+        </div>
+    </div>
+
+    <div class="stage">
+        <h1 class="prompt" id="daily-prompt">What felt heavy today?</h1>
+
+        <div class="vinyl-assembly">
+            <div class="vinyl-bezel"></div>
+            <div class="vinyl-disc" id="record">
+                <div class="vinyl-reflection"></div>
+                <div class="vinyl-label">
+                    <span class="label-text">VOL</span>
+                    <div class="vinyl-hole"></div>
+                    <span class="label-text" id="vol-num">01</span>
+                </div>
+            </div>
+            <div class="tonearm-base"></div>
+            <div class="tonearm"></div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="shelf">
+        <div class="shelf-label" onclick="goToArchive()">ARCHIVE // RECENT ›</div>
+        <div class="shelf-track" id="shelf-track">
+            <div class="shelf-empty"></div>
+            <div class="shelf-empty"></div>
+            <div class="shelf-empty"></div>
+        </div>
+    </div>
+
+    <div class="transport">
+        <div class="rec-housing">
+            <button class="rec-btn" id="record-btn" onclick="toggleRecord()">
+                <div class="rec-btn-surface">
+                    <div class="led-indicator"></div>
+                    <span class="rec-label" id="rec-label">RECORD</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // ─── State ───────────────────────────────────────────────────────────────
+    const body         = document.body;
+    const record       = document.getElementById('record');
+    const statusDisplay= document.getElementById('status-display');
+    const recLabel     = document.getElementById('rec-label');
+    const shelfTrack   = document.getElementById('shelf-track');
+    const volNum       = document.getElementById('vol-num');
+
+    let isRecording    = false;
+    let timerInterval  = null;
+    let seconds        = 0;
+    let recordings     = [];
+
+    // ─── Prompts ─────────────────────────────────────────────────────────────
+    const PROMPTS = [
+        "What felt heavy today?",
+        "What surprised you?",
+        "What are you grateful for?",
+        "What did you learn?",
+        "What do you want to remember?",
+        "What made you smile?",
+        "What's unfinished?",
+        "What do you need to say?"
+    ];
+
+    document.getElementById('daily-prompt').textContent =
+        PROMPTS[new Date().getDay() % PROMPTS.length];
+
+    // ─── Timer ───────────────────────────────────────────────────────────────
+    function formatTime(sec) {
+        const m = Math.floor(sec / 60).toString().padStart(2, '0');
+        const s = (sec % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    function tickTimer() {
+        seconds++;
+        statusDisplay.textContent = `REC // ${formatTime(seconds)}`;
+    }
+
+    // ─── Toggle record ───────────────────────────────────────────────────────
+    function toggleRecord() {
+        if (isRecording) {
+            stopRec();
+        } else {
+            startRec();
+        }
+    }
+
+    function startRec() {
+        if (typeof Android !== 'undefined') {
+            Android.startRecording();
+        } else {
+            // Превью в браузере без моста
+            onRecordingStarted();
+        }
+    }
+
+    function stopRec() {
+        if (typeof Android !== 'undefined') {
+            Android.stopRecording();
+        } else {
+            onRecordingStopped('/mock/recording.m4a');
+        }
+    }
+
+    // ─── Callbacks from Kotlin ───────────────────────────────────────────────
+
+    function onRecordingStarted() {
+        isRecording = true;
+        body.classList.add('is-recording');
+        recLabel.textContent = 'STOP';
+        statusDisplay.textContent = 'REC // 00:00';
+        seconds = 0;
+        timerInterval = setInterval(tickTimer, 1000);
+        setTimeout(() => {
+            if (isRecording) record.style.animation = 'spin 1.8s linear infinite';
+        }, 600);
+    }
+
+    function onRecordingStopped(filePath) {
+        isRecording = false;
+        body.classList.remove('is-recording');
+        record.style.animation = 'none';
+        recLabel.textContent = 'RECORD';
+        clearInterval(timerInterval);
+        seconds = 0;
+        statusDisplay.textContent = 'SYS.RDY // 00:00';
+
+        if (filePath) {
+            localStorage.setItem('currentPlayback', filePath);
+            showToast('SAVED — TAP TO PLAY');
+            refreshShelf();
+        }
+    }
+
+    function onPermissionDenied() {
+        showToast('MIC ACCESS DENIED');
+        statusDisplay.textContent = 'ERR // NO.MIC';
+    }
+
+    // ─── Shelf ───────────────────────────────────────────────────────────────
+    function refreshShelf() {
+        if (typeof Android === 'undefined') return;
+
+        try {
+            recordings = JSON.parse(Android.getRecordingsList());
+        } catch (e) {
+            recordings = [];
+        }
+
+        shelfTrack.innerHTML = '';
+        const recent = recordings.slice(0, 5);
+
+        recent.forEach((rec, i) => {
+            const slot = document.createElement('div');
+            slot.className = 'shelf-slot';
+            slot.innerHTML = `
+                <div class="shelf-item">
+                    <div class="item-spine"></div>
+                    <span class="item-date">${rec.day}</span>
+                </div>`;
+            slot.addEventListener('click', () => openPlayback(rec.filePath));
+            shelfTrack.appendChild(slot);
+        });
+
+        // Заполняем пустыми слотами
+        for (let i = recent.length; i < 5; i++) {
+            const empty = document.createElement('div');
+            empty.className = 'shelf-empty';
+            shelfTrack.appendChild(empty);
+        }
+
+        // Обновляем номер тома
+        volNum.textContent = String(recordings.length + 1).padStart(2, '0');
+    }
+
+    // ─── Navigation ──────────────────────────────────────────────────────────
+    function openPlayback(filePath) {
+        localStorage.setItem('currentPlayback', filePath);
+        if (typeof Android !== 'undefined') Android.navigateTo('playback.html');
+    }
+
+    function goToArchive() {
+        if (typeof Android !== 'undefined') Android.navigateTo('archive.html');
+    }
+
+    function goToSettings() {
+        if (typeof Android !== 'undefined') Android.navigateTo('settings.html');
+    }
+
+    // ─── Toast ───────────────────────────────────────────────────────────────
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // ─── Init ────────────────────────────────────────────────────────────────
+    window.addEventListener('load', () => {
+        refreshShelf();
+    });
+</script>
+
+</body>
+</html>

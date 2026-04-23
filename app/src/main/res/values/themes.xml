@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Needle" parent="Theme.AppCompat.NoActionBar">
+        <!-- Фон окна — пока WebView загружается -->
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <!-- Прозрачные системные бары; финальные цвета устанавливаются кодом в MainActivity -->
+        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <!-- Отключаем устаревшие флаги полупрозрачности -->
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowTranslucentNavigation">false</item>
+    </style>
+</resources>
